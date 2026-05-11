@@ -1,66 +1,97 @@
 # In Development
 
-Secure Smart Sync already ships with a functional merge conflict resolution system, but like most synchronization architectures, conflict handling remains one of the most complex areas to fully solve.
+Secure Smart Sync has reached a stable foundational stage, but several areas still require improvement before the system can be considered fully mature at scale.
 
-The current system resolves conflicts through deterministic rules such as:
+These are not experimental ideas or vague roadmap concepts — they are active engineering problems identified through real-world usage and development.
 
-- Keep newer version
-- Keep larger version
-- Keep remote version
-- Keep local version
+---
 
-These options are user-selectable and intentionally static. They helped reduce complexity during early development and made it possible to stabilize the broader sync architecture faster. However, synchronization systems involve many moving parts, and overly rigid conflict behavior can eventually create user experience issues in edge cases where static decisions may not reflect user intent.
+## Tablet UI Sync Indicator Stability
 
-Following the release of **SSS v1.0.0**, one of the first major milestones for this project is improving conflict handling, edge-case resilience, and overall error recovery.
+The sync status indicator currently behaves correctly on mobile devices, but tablet layouts introduce additional UI inconsistencies.
 
-## Planned Merge Conflict Improvements
+In landscape mode, the icon positioning can become misaligned due to differences in Obsidian’s tablet layout behavior.
 
-### Keep Both as a Smart Sync Default
-Since merge conflicts are more likely to occur during automated Smart Sync workflows, one planned improvement is allowing users to default to **Keep Both** during automated conflicts.
+This issue is more complex than simple positioning adjustments.
 
-Instead of silently overwriting one version, SSS will preserve both files using smarter naming conventions that make duplicate versions easier to identify and manage.
+The indicator must behave like a native Obsidian UI element and properly respond to:
 
-## Always Ask Option
-Another planned option is an **Always Ask** mode.
+- sidebar transitions  
+- modal openings  
+- settings panels  
+- overlay interactions  
+- responsive layout changes  
 
-This would trigger a minimal and non-intrusive UI prompt asking users which version they want to keep whenever a conflict occurs.
+Multiple iterations were required to make this work properly on mobile, and tablet-specific behavior still needs refinement.
 
-While this may interrupt workflow for casual users, it could save significant time for power users who prefer manual control over conflict decisions.
+---
 
-For the next iteration, the goal is to keep this system simple and reliable before exploring more advanced user-driven conflict workflows.
+## Block-Level Syncing
 
-## Encryption Locking Improvements
-Currently, users can switch encryption methods after initial configuration.
+Currently, when a file changes, the entire file is re-uploaded.
 
-This creates a dangerous edge case where users may accidentally lock themselves out of their own vault by changing encryption systems after files have already been uploaded.
+This works well for smaller markdown files, but becomes highly inefficient for larger files.
 
-A planned improvement is to permanently lock users into their selected encryption method after initial setup unless they intentionally perform a migration workflow.
+For example:
 
-This area still needs stronger safeguards and better UX protection.
+- correcting a typo in a large note should not require re-uploading the full file  
+- modifying a large PDF or media file should not trigger full file replacement  
 
-## Relay Configuration Improvements
-The current relay system transfers Cloudflare R2 credentials during device pairing.
+Future versions of Secure Smart Sync aim to introduce block-level syncing, where only modified portions of a file are uploaded.
 
-Future improvements will expand this process to also transfer:
+This would significantly improve sync efficiency for larger vaults and large individual files.
 
-- encryption passwords
-- plugin preferences
-- sync settings
-- configuration metadata
+---
 
-This is important because mismatched encryption settings can cause remote folder fragmentation.
+## Large File Streaming Encryption
 
-For example, a device configured with incorrect encryption credentials may unintentionally create a separate encrypted vault structure, causing the second device to break synchronization entirely.
+Large files currently need to be loaded into memory during encryption.
 
-This is a known issue and considered a high-priority improvement.
+This creates serious problems for devices with limited RAM, especially mobile devices.
 
-## Unknown Edge Cases
-Like any synchronization architecture, some edge cases only appear under highly specific user behavior and are difficult to consistently reproduce.
+Very large files can cause:
 
-Some known issues are still being investigated, while others may not have been discovered yet.
+- excessive memory usage  
+- crashes  
+- failed uploads  
 
-The long-term goal is to ensure that all edge cases are handled through graceful prevention, safer defaults, or clean recovery mechanisms rather than allowing silent failures.
+The current system needs to be replaced with a streaming-based pipeline where files are processed in smaller chunks and directly streamed during encryption and upload.
 
-SSS v1.0.0 established the foundation.
+This would allow Secure Smart Sync to handle significantly larger files more reliably.
 
-The next phase of development is focused on hardening that foundation.
+---
+
+## Large Vault Queue Optimization
+
+The current sync queue performs well for normal vault sizes.
+
+However, extremely large vaults containing thousands of files may trigger Cloudflare API rate limiting due to continuous upload requests.
+
+Future improvements will introduce adaptive queue behavior.
+
+The system will first detect vault scale and determine whether slower batching mechanisms are required.
+
+For larger vaults, Secure Smart Sync may:
+
+- reduce request frequency  
+- batch uploads more intelligently  
+- display clearer progress indicators  
+- prevent unnecessary API throttling  
+
+This ensures large vaults remain reliable without affecting normal users.
+
+---
+
+## Active Editing During Sync
+
+Secure Smart Sync already handles most cases where users continue editing files during active sync operations.
+
+In most situations:
+
+- sync integrity remains intact  
+- partial sync issues are avoided  
+- automatic retries recover safely after idle periods  
+
+However, rapid consecutive edits can still create edge cases involving timing conflicts between active file changes and sync operations.
+
+These edge cases require additional hardening to ensure sync behavior remains fully reliable even during heavy real-time editing.
