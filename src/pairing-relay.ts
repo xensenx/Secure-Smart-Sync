@@ -27,6 +27,8 @@
  *                    for a 6-char PIN over a 10-minute window.
  */
 
+import { requestUrl } from "obsidian";
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Unambiguous characters for PIN generation (no 0/O, 1/l/I).
@@ -100,12 +102,12 @@ export async function consumePairingSlot(
  */
 export async function checkRelayHealth(relayUrl: string): Promise<boolean> {
   try {
-    const res = await fetch(`${normaliseUrl(relayUrl)}/health`, {
+    const rsp = await requestUrl({
+      url:    `${normaliseUrl(relayUrl)}/health`,
       method: "GET",
-      signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return false;
-    const json = await res.json() as { ok?: boolean };
+    if (rsp.status < 200 || rsp.status >= 300) return false;
+    const json = rsp.json as { ok?: boolean };
     return json.ok === true;
   } catch {
     return false;
@@ -252,27 +254,27 @@ function normaliseUrl(url: string): string {
 }
 
 async function storeBlob(blob: string, relayUrl: string): Promise<string> {
-  let res: Response;
+  let rsp: Awaited<ReturnType<typeof requestUrl>>;
   try {
-    res = await fetch(`${normaliseUrl(relayUrl)}/store`, {
-      method:  "POST",
-      headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ blob }),
-      signal:  AbortSignal.timeout(15_000),
+    rsp = await requestUrl({
+      url:         `${normaliseUrl(relayUrl)}/store`,
+      method:      "POST",
+      headers:     { "Content-Type": "application/json" },
+      body:        JSON.stringify({ blob }),
+      contentType: "application/json",
     });
   } catch (e) {
     throw new Error(`Could not reach the pairing relay: ${(e as Error).message}`);
   }
 
-  if (res.status === 429) {
+  if (rsp.status === 429) {
     throw new Error("Relay rate limit hit. Wait a minute and try again.");
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Relay error ${res.status}: ${body}`);
+  if (rsp.status < 200 || rsp.status >= 300) {
+    throw new Error(`Relay error ${rsp.status}: ${rsp.text}`);
   }
 
-  const json = await res.json() as { token?: string; error?: string };
+  const json = rsp.json as { token?: string; error?: string };
   if (!json.token) {
     throw new Error("Relay returned no token. Response: " + JSON.stringify(json));
   }
@@ -281,25 +283,24 @@ async function storeBlob(blob: string, relayUrl: string): Promise<string> {
 }
 
 async function retrieveBlob(token: string, relayUrl: string): Promise<string> {
-  let res: Response;
+  let rsp: Awaited<ReturnType<typeof requestUrl>>;
   try {
-    res = await fetch(`${normaliseUrl(relayUrl)}/retrieve/${encodeURIComponent(token)}`, {
+    rsp = await requestUrl({
+      url:    `${normaliseUrl(relayUrl)}/retrieve/${encodeURIComponent(token)}`,
       method: "GET",
-      signal: AbortSignal.timeout(15_000),
     });
   } catch (e) {
     throw new Error(`Could not reach the pairing relay: ${(e as Error).message}`);
   }
 
-  if (res.status === 404) {
+  if (rsp.status === 404) {
     throw new Error("Pairing code not found. It may have expired or already been used.");
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Relay error ${res.status}: ${body}`);
+  if (rsp.status < 200 || rsp.status >= 300) {
+    throw new Error(`Relay error ${rsp.status}: ${rsp.text}`);
   }
 
-  const json = await res.json() as { blob?: string; error?: string };
+  const json = rsp.json as { blob?: string; error?: string };
   if (!json.blob) {
     throw new Error("Relay returned no blob. Response: " + JSON.stringify(json));
   }

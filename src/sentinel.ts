@@ -101,8 +101,9 @@ export async function pollSentinel(deps: PollSentinelDeps): Promise<void> {
     triggerStateAwareSync();
   } catch (err) {
     const msg        = (err as Error).message ?? "";
-    const statusCode = (err as any)?.$metadata?.httpStatusCode as number | undefined;
-    const errName    = (err as any)?.name as string | undefined;
+    const meta       = (err as { $metadata?: { httpStatusCode?: number } })?.$metadata;
+    const statusCode = meta?.httpStatusCode as number | undefined;
+    const errName    = (err as { name?: string })?.name as string | undefined;
     const isNotFound =
       statusCode === 404 ||
       msg.includes("404") ||

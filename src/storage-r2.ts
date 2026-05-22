@@ -10,9 +10,6 @@
  * - We use Obsidian's requestUrl() to bypass CORS restrictions on mobile/desktop.
  */
 
-import { Buffer } from "buffer";
-import * as path from "path";
-import { Readable } from "stream";
 
 import type { PutObjectCommandInput, _Object } from "@aws-sdk/client-s3";
 import {
@@ -141,8 +138,9 @@ class ObsidianHttpHandler extends FetchHttpHandler {
 
 export const normaliseRemotePrefix = (raw: string | undefined): string => {
   if (!raw) return "";
-  let p = path.posix.normalize(raw.trim());
-  if (!p || p === "." || p === "/") return "";
+  // Inline posix-style normalisation (no Node "path" import needed).
+  let p = raw.trim().replace(/\/+/g, "/").replace(/\/$/, "");
+  if (!p || p === ".") return "";
   if (p.startsWith("/")) p = p.slice(1);
   if (!p.endsWith("/")) p = `${p}/`;
   return p;
@@ -163,19 +161,14 @@ const addPrefix = (key: string, prefix: string): string => {
 
 /**
  * Read an S3 response body as ArrayBuffer regardless of SDK version quirks.
+ * Note: the Readable (Node.js stream) branch is intentionally omitted — all
+ * responses in the Obsidian runtime flow through ObsidianHttpHandler which
+ * returns a Web ReadableStream, never a Node Readable.
  */
 const bodyToArrayBuffer = async (
-  body: Readable | ReadableStream | Blob | undefined
+  body: ReadableStream | Blob | undefined
 ): Promise<ArrayBuffer> => {
   if (body === undefined) throw new Error("S3 response body is undefined");
-  if (body instanceof Readable) {
-    return new Promise((resolve, reject) => {
-      const chunks: Uint8Array[] = [];
-      body.on("data", (c) => chunks.push(c));
-      body.on("error", reject);
-      body.on("end", () => resolve(bufferToArrayBuffer(Buffer.concat(chunks))));
-    });
-  }
   if (body instanceof ReadableStream) {
     return new Response(body).arrayBuffer();
   }
@@ -526,16 +519,16 @@ export class StorageR2 extends StorageBase {
     const rsp = await this.client.send(
       new GetObjectCommand({ Bucket: this.cfg.bucketName, Key: fullKey })
     );
-    return bodyToArrayBuffer(rsp.Body);
+    return bodyToArrayBuffer(rsp.Body as ReadableStream | Blob | undefined);
   }
 
   // ── rename ───────────────────────────────────────────────────────────────────
 
-  async rename(_src: string, _dst: string): Promise<void> {
+  rename(_src: string, _dst: string): Promise<void> {
     // R2/S3 has no server-side rename; copy + delete would require reading the whole file.
     // The sync engine never calls rename directly – it pushes a new version and the
     // old one gets cleaned up on the next pass.
-    throw new Error("rename is not supported for R2 storage");
+    return Promise.reject(new Error("rename is not supported for R2 storage"));
   }
 
   // ── rm ───────────────────────────────────────────────────────────────────────
@@ -608,8 +601,8 @@ export class StorageR2 extends StorageBase {
     return true;
   }
 
-  async getUserDisplayName(): Promise<string> {
-    return `${this.cfg.bucketName}${this.prefix ? ` / ${this.prefix}` : ""}`;
+  getUserDisplayName(): Promise<string> {
+    return Promise.resolve(`${this.cfg.bucketName}${this.prefix ? ` / ${this.prefix}` : ""}`);
   }
 }
 

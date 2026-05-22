@@ -101,7 +101,7 @@ async function migrateSchema(
   to: number,
   vaultId: string
 ): Promise<void> {
-  console.info(`[SSS] Migrating DB schema ${from}→${to} for vault ${vaultId}`);
+  console.warn(`[SSS] Migrating DB schema ${from}→${to} for vault ${vaultId}`);
   // Future migrations go here
 }
 

@@ -330,14 +330,15 @@ export class StorageEncrypt extends StorageBase {
     return this.inner.checkConnection(onError);
   }
 
-  async getUserDisplayName(): Promise<string> {
+  getUserDisplayName(): Promise<string> {
     return this.inner.getUserDisplayName();
   }
 
-  async closeResources(): Promise<void> {
+  closeResources(): Promise<void> {
     if (this.method === "rclone-base64" && this.rcloneCipher) {
       this.rcloneCipher.closeResources();
     }
+    return Promise.resolve();
   }
 
   // ── Entity helper ────────────────────────────────────────────────────────────

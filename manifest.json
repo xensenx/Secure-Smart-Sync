@@ -1,10 +1,10 @@
 {
-  "id": "Secure-Smart-Sync",
+  "id": "secure-smart-sync",
   "name": "Secure-Smart-Sync",
-  "version": "1.0.0",
-  "minAppVersion": "1.0.0",
-  "description": "Sync your Obsidian vault to Cloudflare R2 with client-side encryption.",
+  "version": "1.1.1",
+  "minAppVersion": "1.5.0",
+  "description": "Sync your vault across devices with Cloudflare R2.",
   "author": "Sen",
-  "authorUrl": "https://github.com/xensenx",
+  "authorUrl": "https://github.com/Secure-Smart-Sync",
   "isDesktopOnly": false
 }

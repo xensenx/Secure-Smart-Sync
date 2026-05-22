@@ -96,7 +96,11 @@ export function exportCredentialBundle(settings: PluginSettings): string {
     useCustomRelay:  settings.useCustomRelay,
     customRelayUrl:  settings.customRelayUrl,
   };
-  return btoa(unescape(encodeURIComponent(JSON.stringify(bundle))));
+  const json = JSON.stringify(bundle);
+  const bytes = new TextEncoder().encode(json);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
 }
 
 // ─── Import ──────────────────────────────────────────────────────────────────
@@ -113,9 +117,11 @@ export function exportCredentialBundle(settings: PluginSettings): string {
 export function importCredentialBundle(raw: string): Partial<PluginSettings> {
   let bundle: CredentialBundle;
   try {
-    bundle = JSON.parse(
-      decodeURIComponent(escape(atob(raw.trim())))
-    ) as CredentialBundle;
+    const binary = atob(raw.trim());
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = new TextDecoder().decode(bytes);
+    bundle = JSON.parse(json) as CredentialBundle;
   } catch {
     throw new Error(
       "Not a valid credential bundle. Make sure you copied the complete text without any extra characters."

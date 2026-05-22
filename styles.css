@@ -334,22 +334,30 @@
    SETTINGS — Section headings
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.sss-section-heading {
+/* Now rendered as Obsidian Setting.setHeading() — the class is applied to
+   settingEl (div.setting-item). The name text sits inside .setting-item-name. */
+.setting-item.sss-section-heading {
   font-size: var(--font-ui-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-muted);
-  margin: 28px 0 4px;
+  padding-top: 28px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
+  border-top: none;
 }
 
-.sss-section-heading:first-of-type {
-  margin-top: 8px;
+.setting-item.sss-section-heading .setting-item-name {
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
-.sss-danger-heading {
+.setting-item.sss-danger-heading,
+.setting-item.sss-danger-heading .setting-item-name {
   color: var(--text-error);
   border-bottom-color: rgba(248, 113, 113, 0.3);
 }
@@ -701,4 +709,18 @@
 
 .sss-conflict-btn.mod-cta:hover {
   background: var(--interactive-accent-hover);
+}
+
+/* ─── Utility classes to replace inline element.style assignments ─────────── */
+
+/* Replaces: dd.selectEl.style.opacity = "0.5"; dd.selectEl.style.cursor = "not-allowed" */
+.sss-select-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Replaces: area.inputEl.style.width = "100%"; area.inputEl.style.fontFamily = "monospace" */
+.sss-ignore-paths-input {
+  width: 100%;
+  font-family: var(--font-monospace);
 }

@@ -3,7 +3,6 @@
  * Pure utility functions with no Obsidian or plugin-specific dependencies.
  */
 
-import * as path from "path";
 import { base32, base64url } from "rfc4648";
 import emojiRegex from "emoji-regex";
 import XRegExp from "xregexp";
@@ -11,21 +10,32 @@ import type { Vault } from "obsidian";
 
 // ─── Buffer / ArrayBuffer helpers ─────────────────────────────────────────────
 
+/**
+ * Convert any ArrayBufferView (Uint8Array, DataView, etc.) to a plain ArrayBuffer.
+ * Note: Buffer (Node.js) is a subclass of Uint8Array so this accepts it too.
+ */
 export const bufferToArrayBuffer = (
-  b: Buffer | Uint8Array | ArrayBufferView
-): ArrayBuffer => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+  b: Uint8Array | ArrayBufferView
+): ArrayBuffer => b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
 
-export const arrayBufferToBuffer = (b: ArrayBuffer): Buffer =>
-  Buffer.from(b);
+export const arrayBufferToBase64 = (b: ArrayBuffer): string => {
+  let binary = "";
+  const bytes = new Uint8Array(b);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+};
 
-export const arrayBufferToBase64 = (b: ArrayBuffer): string =>
-  arrayBufferToBuffer(b).toString("base64");
+export const arrayBufferToHex = (b: ArrayBuffer): string => {
+  const bytes = new Uint8Array(b);
+  return Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("");
+};
 
-export const arrayBufferToHex = (b: ArrayBuffer): string =>
-  arrayBufferToBuffer(b).toString("hex");
-
-export const base64ToArrayBuffer = (s: string): ArrayBuffer =>
-  bufferToArrayBuffer(Buffer.from(s, "base64"));
+export const base64ToArrayBuffer = (s: string): ArrayBuffer => {
+  const binary = atob(s);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes.buffer;
+};
 
 export const copyArrayBuffer = (src: ArrayBuffer): ArrayBuffer => {
   const dst = new ArrayBuffer(src.byteLength);
@@ -89,13 +99,16 @@ export const getFolderLevels = (x: string, addSlash = false): string[] => {
 };
 
 export const getParentFolder = (x: string): string => {
-  const dir = path.posix.dirname(x);
-  if (dir === "." || dir === "/") return "/";
+  // Inline posix dirname — finds everything before the last "/".
+  const lastSlash = x.lastIndexOf("/");
+  if (lastSlash <= 0) return "/";
+  const dir = x.slice(0, lastSlash);
   return dir.endsWith("/") ? dir : `${dir}/`;
 };
 
 export const isHiddenPath = (item: string, dot = true, underscore = true): boolean => {
-  const segments = path.posix.normalize(item).split("/");
+  // Inline posix normalize: collapse duplicate slashes and split on "/".
+  const segments = item.replace(/\/+/g, "/").split("/");
   for (const seg of segments) {
     if (!seg || seg === "." || seg === "..") continue;
     if (dot && seg[0] === ".") return true;

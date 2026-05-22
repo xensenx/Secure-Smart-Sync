@@ -10,7 +10,7 @@ import { exportCredentialBundle, importCredentialBundle } from "./credentials-tr
 import { createPairingSlot, consumePairingSlot, checkRelayHealth } from "./pairing-relay";
 import type { SyncTask } from "./sync-engine";
 import { DEFAULT_RELAY_URL } from "./types";
-import type { ConflictResolution } from "./types";
+import type { ConflictResolution, DeleteBehaviour, EncryptionMethod, PluginSettings, SyncDirection } from "./types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -161,10 +161,10 @@ export class ConflictResolutionModal extends Modal {
       });
     };
 
-    btn("Keep This Device",  "keep_local",  true);
-    btn("Keep Other Device", "keep_remote");
-    btn("Keep Both",         "keep_both");
-    btn("Skip for Now",      "skip");
+    btn("Keep this device",  "keep_local",  true);
+    btn("Keep other device", "keep_remote");
+    btn("Keep both",         "keep_both");
+    btn("Skip for now",      "skip");
   }
 
   onClose(): void {
@@ -202,11 +202,11 @@ class PairingSendModal extends Modal {
     const codeWrap = contentEl.createDiv({ cls: "sss-pairing-code-wrap" });
     codeWrap.createEl("span", { text: this.pairingCode, cls: "sss-pairing-code" });
 
-    const copyBtn = codeWrap.createEl("button", { text: "Copy Code", cls: "sss-pairing-copy-btn" });
+    const copyBtn = codeWrap.createEl("button", { text: "Copy code", cls: "sss-pairing-copy-btn" });
     copyBtn.addEventListener("click", async () => {
       await navigator.clipboard.writeText(this.pairingCode);
       copyBtn.textContent = "Copied!";
-      setTimeout(() => { copyBtn.textContent = "Copy Code"; }, 2000);
+      setTimeout(() => { copyBtn.textContent = "Copy code"; }, 2000);
     });
 
     this.countdownEl = contentEl.createEl("p", { cls: "sss-pairing-countdown" });
@@ -285,7 +285,7 @@ export class SSSSettingTab extends PluginSettingTab {
       .setName("Pair to another device")
       .setDesc("Generates a one-time 10-minute code. Enter it in SSS on the other device.")
       .addButton((btn) =>
-        btn.setButtonText("Generate Code").setCta().onClick(async () => {
+        btn.setButtonText("Generate code").setCta().onClick(() => void (async () => {
           const { endpoint, bucketName, accessKeyId, secretAccessKey } = this.plugin.settings.r2;
           if (!endpoint || !bucketName || !accessKeyId || !secretAccessKey) {
             new Notice("Configure your R2 connection first.");
@@ -303,12 +303,11 @@ export class SSSSettingTab extends PluginSettingTab {
             new Notice(`Pairing failed: ${(e as Error).message}`);
           } finally {
             btn.setDisabled(false);
-            btn.setButtonText("Generate Code");
+            btn.setButtonText("Generate code");
           }
-        })
+          })()
+        )
       );
-
-    // ── Pair: enter code (receive side) ─────────────────────────────
     const receiveRow = containerEl.createDiv({ cls: "sss-receive-row" });
 
     const codeInput = receiveRow.createEl("input", {
@@ -321,7 +320,7 @@ export class SSSSettingTab extends PluginSettingTab {
     (codeInput as HTMLInputElement).autocomplete = "off";
 
     const importBtn = receiveRow.createEl("button", {
-      text: "Import Code",
+      text: "Import code",
       cls: "mod-cta sss-receive-btn",
     });
     const receiveStatus = containerEl.createDiv({ cls: "sss-receive-status" });
@@ -345,7 +344,7 @@ export class SSSSettingTab extends PluginSettingTab {
         Object.assign(this.plugin.settings, imported);
         await this.plugin.saveSettings();
         (codeInput as HTMLInputElement).value = "";
-        const isFullBundle = (imported as any).syncDirection !== undefined;
+        const isFullBundle = (imported as Partial<PluginSettings>).syncDirection !== undefined;
         receiveStatus.textContent = isFullBundle
           ? "All credentials and sync preferences imported from primary device."
           : "Credentials imported. Test your connection below.";
@@ -357,13 +356,13 @@ export class SSSSettingTab extends PluginSettingTab {
         receiveStatus.className   = "sss-receive-status sss-receive-err";
       } finally {
         importBtn.disabled = false;
-        (importBtn as HTMLButtonElement).textContent = "Import Code";
+        (importBtn as HTMLButtonElement).textContent = "Import code";
       }
     };
 
-    importBtn.addEventListener("click", doImport);
+    importBtn.addEventListener("click", () => void doImport());
     (codeInput as HTMLInputElement).addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter") doImport();
+      if (e.key === "Enter") void doImport();
     });
 
     // ── R2 Connection: collapsible ────────────────────────────────────
@@ -464,9 +463,9 @@ export class SSSSettingTab extends PluginSettingTab {
         );
 
       const connTestSetting = new Setting(r2Block)
-        .setName("Test Connection")
+        .setName("Test connection")
         .addButton((btn) =>
-          btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Test").onClick(() => void (async () => {
             btn.setDisabled(true);
             btn.setButtonText("Testing…");
             this._setConnectionResult("", "");
@@ -479,7 +478,7 @@ export class SSSSettingTab extends PluginSettingTab {
             btn.setButtonText("Test");
             if (ok) { this._setConnectionResult("Connected successfully", "sss-conn-ok"); }
             else     { this._setConnectionResult(`Failed: ${errorMsg}`, "sss-conn-err"); }
-          })
+          })())
         );
 
       this.connectionResultEl = connTestSetting.settingEl.createEl("div", {
@@ -550,14 +549,13 @@ export class SSSSettingTab extends PluginSettingTab {
           .addOption("openssl-base64", "OpenSSL AES-CBC (content only)")
           .addOption("rclone-base64",  "rclone Salsa20 (names + content)")
           .setValue(this.plugin.settings.encryptionMethod)
-          .onChange(async (v: any) => {
+          .onChange(async (v: EncryptionMethod) => {
             this.plugin.settings.encryptionMethod = v;
             await this.plugin.saveSettings();
           });
         if (isLocked) {
           dd.selectEl.disabled = true;
-          dd.selectEl.style.opacity = "0.5";
-          dd.selectEl.style.cursor  = "not-allowed";
+          dd.selectEl.addClass("sss-select-locked");
           dd.selectEl.title = "Encryption method is locked";
         }
       });
@@ -584,7 +582,7 @@ export class SSSSettingTab extends PluginSettingTab {
           .addOption("push_only",     "Push only  (local → remote)")
           .addOption("pull_only",     "Pull only  (remote → local)")
           .setValue(this.plugin.settings.syncDirection)
-          .onChange(async (v: any) => {
+          .onChange(async (v: SyncDirection) => {
             this.plugin.settings.syncDirection = v;
             await this.plugin.saveSettings();
           })
@@ -606,7 +604,7 @@ export class SSSSettingTab extends PluginSettingTab {
           .addOption("keep_both",   "Keep both (save copy)")
           .addOption("ask",         "Always ask")
           .setValue(this.plugin.settings.conflictResolution)
-          .onChange(async (v: any) => {
+          .onChange(async (v: ConflictResolution) => {
             this.plugin.settings.conflictResolution = v;
             await this.plugin.saveSettings();
           })
@@ -627,21 +625,21 @@ export class SSSSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName("Delete Behaviour")
+      .setName("Delete behaviour")
       .addDropdown((dd) =>
         dd
           .addOption("trash_system", "System trash")
           .addOption("trash_local",  "Obsidian trash (.trash)")
           .addOption("permanent",    "Delete permanently")
           .setValue(this.plugin.settings.deleteBehaviour)
-          .onChange(async (v: any) => {
+          .onChange(async (v: DeleteBehaviour) => {
             this.plugin.settings.deleteBehaviour = v;
             await this.plugin.saveSettings();
           })
       );
 
     new Setting(containerEl)
-      .setName("Skip Files Larger Than (MB)")
+      .setName("Skip files larger than (MB)")
       .setDesc("0 = no limit.")
       .addText((text) => {
         const mb = this.plugin.settings.maxFileSizeBytes > 0
@@ -654,7 +652,7 @@ export class SSSSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Ignore Paths")
+      .setName("Ignore paths")
       .setDesc("Glob patterns, one per line — e.g. *.tmp  archive/  **/node_modules/**")
       .addTextArea((area) => {
         area
@@ -665,8 +663,7 @@ export class SSSSettingTab extends PluginSettingTab {
             await this.plugin.saveSettings();
           });
         area.inputEl.rows = 5;
-        area.inputEl.style.width      = "100%";
-        area.inputEl.style.fontFamily = "monospace";
+        area.inputEl.addClass("sss-ignore-paths-input");
       });
 
     // ═══════════════════════════════════════════════════════════════════
@@ -689,8 +686,8 @@ export class SSSSettingTab extends PluginSettingTab {
         toggle.setValue(this.plugin.settings.useToastForAutoSync).onChange(async (v) => {
           this.plugin.settings.useToastForAutoSync = v;
           await this.plugin.saveSettings();
-          (this.plugin as any).teardownMobileIndicator?.();
-          if (!v) (this.plugin as any).mountMobileIndicator?.();
+          (this.plugin as SSSPlugin & { teardownMobileIndicator?: () => void; mountMobileIndicator?: () => void }).teardownMobileIndicator?.();
+          if (!v) (this.plugin as SSSPlugin & { mountMobileIndicator?: () => void }).mountMobileIndicator?.();
         })
       );
 
@@ -779,7 +776,7 @@ export class SSSSettingTab extends PluginSettingTab {
 
     if (!smartEnabled) {
       new Setting(containerEl)
-        .setName("Sync on App Open")
+        .setName("Sync on app open")
         .setDesc("Triggers a sync a few seconds after Obsidian launches.")
         .addToggle((toggle) =>
           toggle.setValue(this.plugin.settings.syncOnOpen).onChange(async (v) => {
@@ -789,7 +786,7 @@ export class SSSSettingTab extends PluginSettingTab {
         );
 
       new Setting(containerEl)
-        .setName("Auto-Sync Interval (minutes)")
+        .setName("Auto-sync interval (minutes)")
         .setDesc("0 = disabled.")
         .addText((text) => {
           const minutes = this.plugin.settings.autoSyncIntervalMs > 0
@@ -802,7 +799,7 @@ export class SSSSettingTab extends PluginSettingTab {
         });
 
       new Setting(containerEl)
-        .setName("Sync on Save Debounce (seconds)")
+        .setName("Sync on save debounce (seconds)")
         .setDesc("Sync N seconds after a file is saved. 0 = disabled. Requires reload if changed.")
         .addText((text) => {
           const secs = this.plugin.settings.syncOnSaveDebounceMs > 0
@@ -815,7 +812,7 @@ export class SSSSettingTab extends PluginSettingTab {
         });
 
       new Setting(containerEl)
-        .setName("Sync on Idle (seconds)")
+        .setName("Sync on idle (seconds)")
         .setDesc("Sync N seconds after you stop typing. 0 = disabled. Requires reload if changed.")
         .addText((text) => {
           const secs = this.plugin.settings.syncOnIdleMs > 0
@@ -862,7 +859,7 @@ export class SSSSettingTab extends PluginSettingTab {
             })
         )
         .addButton((btn) =>
-          btn.setButtonText("Test").onClick(async () => {
+          btn.setButtonText("Test").onClick(() => void (async () => {
             if (!this.plugin.settings.customRelayUrl) {
               new Notice("Enter a relay URL first.");
               return;
@@ -873,12 +870,12 @@ export class SSSSettingTab extends PluginSettingTab {
             btn.setDisabled(false);
             btn.setButtonText("Test");
             new Notice(ok ? "Relay is reachable." : "Could not reach relay. Check the URL.");
-          })
+          })())
         );
     }
 
     new Setting(containerEl)
-      .setName("Log Level")
+      .setName("Log level")
       .addDropdown((dd) =>
         dd
           .addOption("error", "Error only")
@@ -886,15 +883,15 @@ export class SSSSettingTab extends PluginSettingTab {
           .addOption("info",  "Info (default)")
           .addOption("debug", "Debug (verbose)")
           .setValue(this.plugin.settings.logLevel)
-          .onChange(async (v: any) => {
+          .onChange(async (v: PluginSettings["logLevel"]) => {
             this.plugin.settings.logLevel = v;
             await this.plugin.saveSettings();
           })
       );
 
     new Setting(containerEl)
-      .setName("Sync .obsidian config directory")
-      .setDesc("Include Obsidian configuration files in the sync.")
+      .setName("Sync Obsidian config directory")
+      .setDesc("Include Obsidian configuration files (app.vault.configDir) in the sync.")
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.syncConfigDir).onChange(async (v) => {
           this.plugin.settings.syncConfigDir = v;
@@ -918,14 +915,14 @@ export class SSSSettingTab extends PluginSettingTab {
     this._sectionHeading(containerEl, "Danger Zone", "sss-danger-heading");
 
     new Setting(containerEl)
-      .setName("Reset Sync History")
+      .setName("Reset sync history")
       .setDesc(
         "Clears the local record of what was last synced. " +
         "The next sync will do a full comparison against remote — no data is deleted."
       )
       .addButton((btn) =>
-        btn.setButtonText("Reset").setWarning().onClick(async () => {
-          await (this.plugin as any).resetSyncHistory?.();
+        btn.setButtonText("Reset").setWarning().onClick(() => {
+          void (this.plugin as SSSPlugin & { resetSyncHistory?: () => Promise<void> }).resetSyncHistory?.();
         })
       );
 
@@ -941,7 +938,7 @@ export class SSSSettingTab extends PluginSettingTab {
       iconSvg:  GITHUB_SVG,
       label:    "GitHub Repository",
       desc:     "Source code, issues, and changelogs",
-      href:     "https://github.com/xensenx/Secure-Smart-Sync",
+      href:     "https://github.com/Secure-Smart-Sync/Secure-Smart-Sync",
     });
 
     this._resourceCard(resources, {
@@ -961,7 +958,7 @@ export class SSSSettingTab extends PluginSettingTab {
 
     this._resourceCard(resources, {
       iconSvg:  GITHUB_SVG,
-      label:    "Developer — @xensenx",
+      label:    "Developer — Sen",
       desc:     "Other projects and work",
       href:     "https://github.com/xensenx",
     });
@@ -971,8 +968,9 @@ export class SSSSettingTab extends PluginSettingTab {
 
   /** Renders a labelled section divider with optional extra CSS class. */
   private _sectionHeading(container: HTMLElement, text: string, extraCls?: string): void {
-    const el = container.createEl("h3", { text, cls: "sss-section-heading" });
-    if (extraCls) el.addClass(extraCls);
+    const s = new Setting(container).setName(text).setHeading();
+    s.settingEl.addClass("sss-section-heading");
+    if (extraCls) s.settingEl.addClass(extraCls);
   }
 
   /**

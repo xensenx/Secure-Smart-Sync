@@ -173,11 +173,11 @@ export class StorageLocal extends StorageBase {
 
   // ── connectivity ─────────────────────────────────────────────────────────────
 
-  async checkConnection(_onError?: (err: unknown) => void): Promise<boolean> {
-    return true; // local vault is always available
+  checkConnection(_onError?: (err: unknown) => void): Promise<boolean> {
+    return Promise.resolve(true); // local vault is always available
   }
 
-  async getUserDisplayName(): Promise<string> {
-    return this.vault.getName();
+  getUserDisplayName(): Promise<string> {
+    return Promise.resolve(this.vault.getName());
   }
 }

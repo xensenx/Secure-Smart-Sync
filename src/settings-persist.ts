@@ -26,12 +26,8 @@ export const decodeSettings = (raw: StoredConfig): PluginSettings | null | undef
   if (raw === null || raw === undefined) return raw as any;
   if ("readme" in (raw as object) && "d" in (raw as object)) {
     const typed = raw as PersistedConfig;
-    const json = (
-      base64url.parse(reverseString(typed.d), {
-        out: Buffer.allocUnsafe as any,
-        loose: true,
-      }) as Buffer
-    ).toString("utf-8");
+    const bytes = base64url.parse(reverseString(typed.d), { loose: true });
+    const json = new TextDecoder().decode(bytes);
     return JSON.parse(json) as PluginSettings;
   }
   return raw as PluginSettings;
@@ -41,12 +37,9 @@ export const encodeSettings = (
   settings: PluginSettings | null | undefined
 ): PersistedConfig | null | undefined => {
   if (settings === null || settings === undefined) return settings as any;
+  const bytes = new TextEncoder().encode(JSON.stringify(settings));
   return {
     readme: README_NOTE,
-    d: reverseString(
-      base64url.stringify(Buffer.from(JSON.stringify(settings), "utf-8"), {
-        pad: false,
-      })
-    ),
+    d: reverseString(base64url.stringify(bytes, { pad: false })),
   };
 };

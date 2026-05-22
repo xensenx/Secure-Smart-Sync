@@ -1,4 +1,4 @@
-﻿/**
+/**
  * sync-engine.ts
  * Core sync decision engine for Secure-Smart-Sync (SSS).
  */
@@ -51,9 +51,9 @@ export function matchesIgnorePath(key: string, patterns: string[]): boolean {
     if (p.endsWith("/") && key.startsWith(p)) return true;
     const regexStr = p
       .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*\*/g, "\u0000")
+      .replace(/\*\*/g, "<GLOBSTAR>")
       .replace(/\*/g, "[^/]*")
-      .replace(/\u0000/g, ".*");
+      .replace(/<GLOBSTAR>/g, ".*");
     if (new RegExp(`^${regexStr}$`).test(key)) return true;
   }
   return false;

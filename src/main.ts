@@ -253,7 +253,7 @@ export default class SSSPlugin extends Plugin {
     this.logger.info(`Plugin loaded. Vault ID: ${vaultId}`);
   }
 
-  async onunload(): Promise<void> {
+  onunload(): void {
     clearAutoSync(this.autoSyncHandle);
     if (this.sentinelState.sentinelPollTimer !== undefined)
       window.clearTimeout(this.sentinelState.sentinelPollTimer);

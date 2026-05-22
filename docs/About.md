@@ -10,6 +10,6 @@ The initial public release of **SSS v1.0.0** was reached after **26 major iterat
 
 All branding assets—including the project name, logos, icons, and visual identity—were created by Sen and remain exclusive to this project.
 
-While the source code is licensed under the **MIT License**, the branding assets are **not** covered under that license. If you redistribute or fork the software, it is strongly recommended that you remove or replace the original SVG logos and branding materials.
+While the source code is licensed under the **MIT License**, the branding assets are **not** covered under that license. If you redistribute or fork the software, it is strongly recommended that you remove or replace the original SVG logos and branding materials from the code and repository.
 
 For additional technical details, documentation, and project information, visit the GitHub Wiki section of this repository.
